@@ -108,7 +108,7 @@ func (r *SubscriptionsRepo) Delete(id string) (string, error) {
 }
 
 func (r *SubscriptionsRepo) GetAll() (*[]models.Subscription, error) {
-	const op = "postgres.subscriptions.create"
+	const op = "postgres.subscriptions.getall"
 
 	rows, err := r.db.Query(`
 		SELECT * FROM subscriptions
@@ -124,7 +124,7 @@ func (r *SubscriptionsRepo) GetAll() (*[]models.Subscription, error) {
 	var subscriptions []models.Subscription
 	for rows.Next() {
 		var sub models.Subscription
-		err := rows.Scan(&sub)
+		err := rows.Scan(&sub.ID, &sub.Service_name, &sub.Price, &sub.User_id, &sub.Start_date, &sub.End_date)
 		if err != nil {
 			log.Printf("%s: %v", op, err)
 			return &[]models.Subscription{}, fmt.Errorf("%s: %w", op, err)
@@ -133,4 +133,32 @@ func (r *SubscriptionsRepo) GetAll() (*[]models.Subscription, error) {
 	}
 
 	return &subscriptions, err
+}
+
+func (r *SubscriptionsRepo) GetAmount(service_name, user_id string) (int64, error) {
+	const op = "postgres.subscriptions.getamount"
+
+	var stmt string
+	var params []any
+	if service_name != "" && user_id != "" {
+		stmt = `SELECT SUM(price) AS amount FROM subscriptions WHERE service_name = $1 AND user_id = $2`
+		params = []any{service_name, user_id}
+	} else if service_name != "" {
+		stmt = `SELECT SUM(price) AS amount FROM subscriptions WHERE service_name = $1`
+		params = []any{service_name}
+	} else if user_id != "" {
+		stmt = `SELECT SUM(price) AS amount FROM subscriptions WHERE user_id = $1`
+		params = []any{user_id}
+	} else {
+		stmt = `SELECT SUM(price) AS amount FROM subscriptions`
+		params = []any{}
+	}
+
+	var amount int64
+	if err := r.db.QueryRow(stmt, params...).Scan(&amount); err != nil {
+		log.Printf("%s: %v", op, err)
+		return 0, fmt.Errorf("%s: %w", op, err)
+	}
+
+	return amount, nil
 }

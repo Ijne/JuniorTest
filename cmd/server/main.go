@@ -28,6 +28,8 @@ func main() {
 	r.Handle("/getsub", handlers.GetSubHandler(s))
 	r.Handle("/updatesub", handlers.UpdateSubHandler(s))
 	r.Handle("/deletesub", handlers.DeleteSubHandler(s))
+	r.Handle("/list", handlers.ListSubHandler(s))
+	r.Handle("/amount", handlers.AmountSubHandler(s))
 
 	log.Println("Start serving...")
 	if err := http.ListenAndServe("localhost:8087", r); err != nil {
