@@ -8,5 +8,5 @@ type SubscriptionsRepo interface {
 	Update(id string, service_name string, price int64, user_id string, start_date, end_date string) (string, error)
 	Delete(id string) (string, error)
 	GetAll() (*[]models.Subscription, error)
-	GetAmount(service_name, user_id string) (int64, error)
+	GetAmount(service_name, user_id, start_date, end_date string) (int64, error)
 }

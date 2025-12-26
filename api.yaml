@@ -1,0 +1,183 @@
+openapi: 3.0.0
+info:
+  title: Сервис подписок
+  version: 1.0
+
+paths:
+  /createsub:
+    post:
+      summary: Создать запись о подписке
+      tags: [subscriptions]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Subscription'
+      responses:
+        '201':
+          description: Запись создана
+        '405':
+          description: Метод не поддерживается
+
+  /getsub:
+    get:
+      summary: Получить подписку по id
+      tags: [subscriptions]
+      parameters:
+        - name: id
+          in: query
+          required: true
+          schema:
+            type: string
+          description: ID подписки
+      responses:
+        '200':
+          description: Информация о конкретной подписке
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subscription'
+        '405':
+          description: Метод не поддерживается
+
+  /updatesub:
+    put:
+      summary: Обновить запись о подписке
+      tags: [subscriptions]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Subscription'
+      parameters:
+        - name: id
+          in: query
+          required: true
+          schema:
+            type: string
+          description: ID подписки
+      responses:
+        '200':
+          description: Информация о записи о подписке обновлена
+        '405':
+          description: Метод не поддерживается
+
+  /deletesub:
+    delete:
+      summary: Удалить запись о подписке
+      tags: [subscriptions]
+      parameters:
+        - name: id
+          in: query
+          required: true
+          schema:
+            type: string
+          description: ID подписки
+      responses:
+        '200':
+          description: Запись о подписке удалена
+        '405':
+          description: Метод не поддерживается
+
+  /list:
+    get:
+      summary: Получить все записи
+      tags: [subscriptions]
+      responses:
+        '200':
+          description: Список всех подписок
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Subscription'
+        '405':
+          description: Метод не поддерживается
+              
+  /amount:
+    get:
+      summary: Получить сумму подписок за выбранный период с фильтрацией по id пользователя и названию подписки
+      tags: [subscriptions]
+      parameters:
+        - name: start_date
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+            example: "2025-10-01"
+          description: Начальная дата периода
+          
+        - name: end_date
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+            example: "2025-11-01"
+          description: Конечная дата периода
+          
+        - name: service_name
+          in: query
+          required: false
+          schema:
+            type: string
+            example: "Yandex Plus"
+          description: Фильтр по названию сервиса
+          
+        - name: user_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+            example: "60501fee-2bf1-4721-ae6f-7636e79a0cba"
+          description: Фильтр по ID пользователя
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Amount'
+      responses:
+        '200':
+          description: Сумма подписок получена
+        '405':
+          description: Метод не поддерживается
+
+
+
+components:
+  schemas:
+    Subscription:
+      type: object
+      required:
+        - service_name
+        - price
+        - user_id
+        - start_date
+      properties:
+        service_name:
+          type: string
+          example: "Yandex Plus"
+        price:
+          type: number
+          format: integer
+          example: 400
+        user_id:
+          type: string
+          format: uuid
+          example: "60501fee-2bf1-4721-ae6f-7636e79a0cba"
+        start_date:
+          type: string
+          example: "10-2025"
+        end_date:
+          type: string
+          example: "11-2025"
+    Amount:
+      type: object
+      properties:
+        Amount:
+          type: integer
+          example: 4000

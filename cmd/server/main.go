@@ -32,7 +32,7 @@ func main() {
 	r.Handle("/amount", handlers.AmountSubHandler(s))
 
 	log.Println("Start serving...")
-	if err := http.ListenAndServe("localhost:8087", r); err != nil {
+	if err := http.ListenAndServe(cfg.Server.Address, r); err != nil {
 		panic(err)
 	}
 }

@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"strconv"
 
 	"github.com/Ijne/JuniorTest/internal/models"
 )
@@ -25,10 +26,10 @@ func (r *SubscriptionsRepo) CreateTable() error {
 		CREATE TABLE IF NOT EXISTS public.subscriptions (
 			id bigserial NOT NULL,
 			service_name varchar NOT NULL,
-			price numeric NOT NULL,
+			price integer NOT NULL,
 			user_id uuid NOT NULL,
-			start_date varchar NOT NULL,
-			end_date varchar NOT NULL,
+			start_date date NOT NULL,
+			end_date date,
 			CONSTRAINT subscriptions_pk PRIMARY KEY (id)
 		);
 	`
@@ -44,12 +45,25 @@ func (r *SubscriptionsRepo) Create(service_name string, price int64, user_id str
 	const op = "postgres.subscriptions.create"
 
 	var id int64
+	var stmt string
+	var params []any
 
-	err := r.db.QueryRow(`
+	if end_date != "" {
+		stmt = `
 		INSERT INTO subscriptions (service_name, price, user_id, start_date, end_date)
 		VALUES ($1, $2, $3, $4, $5)
 		RETURNING id
-	`, service_name, price, user_id, start_date, end_date).Scan(&id)
+	`
+		params = []any{service_name, price, user_id, start_date, end_date}
+	} else {
+		stmt = `
+		INSERT INTO subscriptions (service_name, price, user_id, start_date)
+		VALUES ($1, $2, $3, $4)
+		RETURNING id
+	`
+		params = []any{service_name, price, user_id, start_date}
+	}
+	err := r.db.QueryRow(stmt, params...).Scan(&id)
 
 	if err != nil {
 		log.Printf("%s: %v", op, err)
@@ -65,7 +79,7 @@ func (r *SubscriptionsRepo) Get(id string) (models.Subscription, error) {
 	var subscription models.Subscription
 
 	err := r.db.QueryRow(`
-		SELECT * FROM subscriptions WHERE id = $1
+		SELECT id, service_name, price, user_id, start_date, COALESCE(end_date::varchar, '') as end_date FROM subscriptions WHERE id = $1
 	`, id).Scan(&subscription.ID, &subscription.Service_name, &subscription.Price, &subscription.User_id, &subscription.Start_date, &subscription.End_date)
 
 	if err != nil {
@@ -111,7 +125,7 @@ func (r *SubscriptionsRepo) GetAll() (*[]models.Subscription, error) {
 	const op = "postgres.subscriptions.getall"
 
 	rows, err := r.db.Query(`
-		SELECT * FROM subscriptions
+		SELECT id, service_name, price, user_id, start_date, COALESCE(end_date::varchar, '') as end_date FROM subscriptions
 	`)
 
 	if err != nil {
@@ -135,24 +149,55 @@ func (r *SubscriptionsRepo) GetAll() (*[]models.Subscription, error) {
 	return &subscriptions, err
 }
 
-func (r *SubscriptionsRepo) GetAmount(service_name, user_id string) (int64, error) {
+func BuildSearchQuery(service_name, user_id, start_date, end_date string) (string, []any) {
+	stmt := ""
+	var params = []any{}
+	c := 1
+	if service_name != "" {
+		stmt += `service_name = $` + strconv.Itoa(c)
+		c++
+		params = append(params, service_name)
+	}
+	if user_id != "" {
+		stmt += `user_id = $` + strconv.Itoa(c)
+		if c != 1 {
+			stmt += ` AND user_id = $` + strconv.Itoa(c)
+		} else {
+			stmt += `user_id = $` + strconv.Itoa(c)
+		}
+		c++
+		params = append(params, user_id)
+	}
+	if start_date != "" {
+		if c != 1 {
+			stmt += ` AND start_date >= $` + strconv.Itoa(c)
+		} else {
+			stmt += `start_date >= $` + strconv.Itoa(c)
+		}
+		c++
+		params = append(params, start_date)
+	}
+	if end_date != "" {
+		if c != 1 {
+			stmt += ` AND (end_date <= $` + strconv.Itoa(c) + ` OR end_date IS NULL)`
+		} else {
+			stmt += ` (end_date <= $` + strconv.Itoa(c) + ` OR end_date IS NULL)`
+		}
+		c++
+		params = append(params, end_date)
+	}
+
+	if stmt != "" {
+		log.Println("SELECT SUM(price) AS total_sum FROM subscriptions WHERE " + stmt)
+		return "SELECT SUM(price) AS total_sum FROM subscriptions WHERE " + stmt, params
+	}
+	return "SELECT SUM(price) AS total_sum FROM subscriptions", params
+}
+
+func (r *SubscriptionsRepo) GetAmount(service_name, user_id, start_date, end_date string) (int64, error) {
 	const op = "postgres.subscriptions.getamount"
 
-	var stmt string
-	var params []any
-	if service_name != "" && user_id != "" {
-		stmt = `SELECT SUM(price) AS amount FROM subscriptions WHERE service_name = $1 AND user_id = $2`
-		params = []any{service_name, user_id}
-	} else if service_name != "" {
-		stmt = `SELECT SUM(price) AS amount FROM subscriptions WHERE service_name = $1`
-		params = []any{service_name}
-	} else if user_id != "" {
-		stmt = `SELECT SUM(price) AS amount FROM subscriptions WHERE user_id = $1`
-		params = []any{user_id}
-	} else {
-		stmt = `SELECT SUM(price) AS amount FROM subscriptions`
-		params = []any{}
-	}
+	stmt, params := BuildSearchQuery(service_name, user_id, start_date, end_date)
 
 	var amount int64
 	if err := r.db.QueryRow(stmt, params...).Scan(&amount); err != nil {

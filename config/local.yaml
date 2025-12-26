@@ -1,8 +1,8 @@
 server:
-  address: "0.0.0.0:8080"
+  address: "0.0.0.0:8082"
 
 postgres:
-  host: localhost
+  host: postgres
   port: 5432
   database: postgres
   ssl_mode: disable

@@ -32,7 +32,6 @@ func New(configPath string) (*Config, error) {
 		return nil, err
 	}
 
-	// чтение yaml
 	var cfg Config
 	yaml.Unmarshal(file, &cfg)
 	validate := validator.New()
@@ -40,7 +39,6 @@ func New(configPath string) (*Config, error) {
 		return nil, err
 	}
 
-	// чтения переменных окружения
 	cfg.Postgres.Username = os.Getenv("POSTGRES_USER")
 	if cfg.Postgres.Username == "" {
 		cfg.Postgres.Username = "postgres"
